@@ -52,6 +52,10 @@ def get_tracks(items):
     return [get_track(item) for item in items]
 
 if __name__ == '__main__':
+    if os.system('which rhythmbox') != 0:
+        raise SystemExit('Rhythmbox music player is not installed.')
+    if not os.path.exists(RHYTHM_DB):
+        raise SystemExit('Rhythmbox DB file does not exist.')
     resp = requests.get(BASE_URL, params=PARAMS)
     assert resp.status_code == 200, "Failed fetching data from Last.fm"
     data = resp.json()
