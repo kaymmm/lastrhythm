@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import json
 import optparse
 
 import requests
@@ -17,7 +16,7 @@ PARAMS = {
     "format": "json",
     "method": "library.gettracks",
     "page": 1,
-    "limit": 5,
+    "limit": 200,
     "api_key": API_KEY,
     "user": USERNAME
 }
@@ -38,11 +37,13 @@ def load_rb_tracks():
     root = tree.getroot()
     return [
         {
-            'playcount': int(getattr(child.find('play-count'), 'text', 0)),
-            'duration': int(1000 * int(getattr(child.find('duration'), 'text', 0))),
+            'playcount': str(int(getattr(child.find('play-count'), 'text', 0))),
+            'duration': str(int(1000 * int(getattr(child.find('duration'), 'text', 0)))),
             'title': getattr(child.find('title'), 'text', ''),
             'artist': getattr(child.find('artist'), 'text', None),
-            'album': getattr(child.find('album'), 'text', None)
+            'album': getattr(child.find('album'), 'text', None),
+            'node': child,
+            'tree': tree
         }
         for child in root
     ]
@@ -55,12 +56,9 @@ if __name__ == '__main__':
     resp = requests.get(BASE_URL, params=PARAMS)
     assert resp.status_code == 200, "Failed fetching data from Last.fm"
     data = resp.json()
-    print data['tracks']['track']
     last_fm_tracks = get_tracks(data['tracks']['track'])
     pagination = data['tracks']['@attr']
-
-    debug = True
-    while not debug and PARAMS['page'] > int(pagination['totalPages']):
+    while PARAMS['page'] > int(pagination['totalPages']):
         PARAMS['page'] += 1
         resp = requests.get(BASE_URL, params=PARAMS)
         assert resp.status_code == 200
@@ -69,14 +67,28 @@ if __name__ == '__main__':
         last_fm_tracks += get_tracks(data['tracks']['track'])
 
     rhythmbox_tracks = load_rb_tracks()
+    tree = None
+    for track in rhythmbox_tracks:
+        node = track.pop('node')
+        tree = track.pop('tree')
+        playcount = track.pop('playcount')
+        duration = track.pop('duration')
 
-    match_fields = ['title', 'duration', 'artist', 'album']
-    for track in last_fm_tracks:
-        print track
-        found = False
-        print '-' * 80
-        for rb_track in rhythmbox_tracks[:3]:
-            for m in match_fields:
-                pass
-            print rb_track
-        print "=" * 80
+        for stats in last_fm_tracks:
+            stats = stats.copy()
+            stats.pop('duration')
+            last_fm_playcount = stats.pop('playcount')
+            if stats == track and int(last_fm_playcount) > int(playcount):
+                children = node.getchildren()
+                playcount_element = None
+                for child in children:
+                    if child.tag == 'play-count':
+                        playcount_element = child
+                        break
+                if playcount_element is None:
+                    playcount_element = ET.SubElement(node, 'play-count')
+                playcount_element.text = str(last_fm_playcount)
+
+    if tree is not None:
+        tree.write(RHYTHM_DB)
+
