@@ -1,25 +1,25 @@
 #!/usr/bin/env python
 
 import os
-import optparse
 import sys
+import optparse
 
 import requests
 import xml.etree.ElementTree as ET
 
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)  # unbuffered output
-BASE_URL = "http://ws.audioscrobbler.com/2.0/"
 API_KEY = "5fd9edac8d47aee4c1a5cb4214a7eb87"
+BASE_URL = "http://ws.audioscrobbler.com/2.0/"
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 RHYTHM_DB = os.path.expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
 
 
 def get_track(item):
     return {
-        'title': item['name'],
-        'artist': item.get('artist', {}).get('name'),
-        'album': item.get('album', {}).get('name'),
-        'playcount': item['playcount'],
-        'duration': item['duration']
+        'title'     : item['name'],
+        'artist'    : item.get('artist', {}).get('name'),
+        'album'     : item.get('album', {}).get('name'),
+        'playcount' : item['playcount'],
+        'duration'  : item['duration']
     }
 
 
@@ -28,13 +28,13 @@ def load_rb_tracks():
     root = db.getroot()
     return [
         {
-            'playcount': str(int(getattr(child.find('play-count'), 'text', 0))),
-            'duration': str(int(1000 * int(getattr(child.find('duration'), 'text', 0)))),
-            'title': getattr(child.find('title'), 'text', ''),
-            'artist': getattr(child.find('artist'), 'text', None),
-            'album': getattr(child.find('album'), 'text', None),
-            'node': node,
-            'tree': db
+            'playcount' : str(int(getattr(child.find('play-count'), 'text', 0))),
+            'duration'  : str(int(1000 * int(getattr(child.find('duration'), 'text', 0)))),
+            'title'     : getattr(child.find('title'), 'text', ''),
+            'artist'    : getattr(child.find('artist'), 'text', None),
+            'album'     : getattr(child.find('album'), 'text', None),
+            'node'      : node,
+            'tree'      : db
         }
         for node in root
     ]
@@ -76,7 +76,7 @@ def is_equal(a, b, fuzzy=True):
             duration_a = int(a.pop('duration', -1))
             duration_b = int(a.pop('duration', -1))
             delta = abs(duration_a - duration_b)
-            is_same = duration_a > 0 and duration_b > 0 and delta <= 5000  # allow up to 5-second duration mismatch
+            is_same = duration_a > 0 and duration_b > 0 and delta <= 10E3
             if is_same:
                 import Levenshtein
                 is_same = all([
@@ -95,6 +95,11 @@ def validate():
         raise SystemExit('Rhythmbox music player is not installed.')
     if not os.path.exists(RHYTHM_DB):
         raise SystemExit('Rhythmbox DB file does not exist.')
+    if os.system('rhythmbox-client --check-running') == 0:
+        if options.force:
+            print 'Warning: Rhythmbox is running.'
+        else:
+            raise SystemExit('Rhythmbox is running.')
 
 
 if __name__ == '__main__':
@@ -103,6 +108,8 @@ if __name__ == '__main__':
     parser.add_option('-l', '--limit', type=int, default=250, help='Number of tracks per page to fetch')
     parser.add_option('--fuzzy', action='store_true', default=False,
                       help='Use fuzzy matching. Depends on python-Levenshtein library.')
+    parser.add_option('-f', '--force', action='store_true', default=False,
+                      help='Ignore warnings and continue regardless.')
     options, files = parser.parse_args()
 
     validate()
