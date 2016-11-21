@@ -28,11 +28,11 @@ def load_rb_tracks():
     root = db.getroot()
     return [
         {
-            'playcount' : str(int(getattr(child.find('play-count'), 'text', 0))),
-            'duration'  : str(int(1000 * int(getattr(child.find('duration'), 'text', 0)))),
-            'title'     : getattr(child.find('title'), 'text', ''),
-            'artist'    : getattr(child.find('artist'), 'text', None),
-            'album'     : getattr(child.find('album'), 'text', None),
+            'playcount' : str(int(getattr(node.find('play-count'), 'text', 0))),
+            'duration'  : str(int(1000 * int(getattr(node.find('duration'), 'text', 0)))),
+            'title'     : getattr(node.find('title'), 'text', ''),
+            'artist'    : getattr(node.find('artist'), 'text', None),
+            'album'     : getattr(node.find('album'), 'text', None),
             'node'      : node,
             'tree'      : db
         }
@@ -50,9 +50,9 @@ def get_last_fm_data(tracks=None, **params):
     resp = requests.get(BASE_URL, params=params)
     assert resp.status_code == 200, "Failed fetching data from Last.fm"
     data = resp.json()
-    pagination = data['tracks']['@attr']
+    pagination = data['toptracks']['@attr']
     tracks = tracks if tracks else []
-    tracks += get_tracks(data['tracks']['track'])
+    tracks += get_tracks(data['toptracks']['track'])
     percent = 100.0 * params['page'] / float(pagination['totalPages'])
     print 'ok ... [%.1f%%]' % percent
 
@@ -116,10 +116,11 @@ if __name__ == '__main__':
 
     last_fm_tracks = get_last_fm_data(
         format='json',
-        method='library.gettracks',
+        method='user.gettoptracks',
         limit=options.limit,
         api_key=API_KEY,
-        user=options.username
+        user=options.username,
+        period='overall'
     )
 
     print 'Loading rhythmbox database file ... ',
