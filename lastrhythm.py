@@ -9,17 +9,17 @@ import xml.etree.ElementTree as ET
 
 API_KEY = "5fd9edac8d47aee4c1a5cb4214a7eb87"
 BASE_URL = "http://ws.audioscrobbler.com/2.0/"
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w')
 RHYTHM_DB = os.path.expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
 
 
 def get_track(item):
     return {
-        'title'     : item['name'],
-        'artist'    : item.get('artist', {}).get('name'),
-        'album'     : item.get('album', {}).get('name'),
-        'playcount' : item['playcount'],
-        'duration'  : item['duration']
+        'title':     item['name'],
+        'artist':    item.get('artist', {}).get('name'),
+        'album':     item.get('album', {}).get('name'),
+        'playcount': item['playcount'],
+        'duration':  item['duration']
     }
 
 
@@ -28,13 +28,14 @@ def load_rb_tracks():
     root = db.getroot()
     return [
         {
-            'playcount' : str(int(getattr(node.find('play-count'), 'text', 0))),
-            'duration'  : str(int(1000 * int(getattr(node.find('duration'), 'text', 0)))),
-            'title'     : getattr(node.find('title'), 'text', ''),
-            'artist'    : getattr(node.find('artist'), 'text', None),
-            'album'     : getattr(node.find('album'), 'text', None),
-            'node'      : node,
-            'tree'      : db
+            'playcount': str(int(getattr(node.find('play-count'), 'text', 0))),
+            'duration':  str(int(1000 * int(getattr(node.find('duration'),
+                             'text', 0)))),
+            'title':     getattr(node.find('title'), 'text', ''),
+            'artist':    getattr(node.find('artist'), 'text', None),
+            'album':     getattr(node.find('album'), 'text', None),
+            'node':      node,
+            'tree':      db
         }
         for node in root
     ]
@@ -45,7 +46,7 @@ def get_tracks(items):
 
 
 def get_last_fm_data(tracks=None, **params):
-    print 'Fetching tracks from Last.fm ... ',
+    print('Fetching tracks from Last.fm ... ')
     params.setdefault('page', 1)
     resp = requests.get(BASE_URL, params=params)
     assert resp.status_code == 200, "Failed fetching data from Last.fm"
@@ -54,7 +55,7 @@ def get_last_fm_data(tracks=None, **params):
     tracks = tracks if tracks else []
     tracks += get_tracks(data['toptracks']['track'])
     percent = 100.0 * params['page'] / float(pagination['totalPages'])
-    print 'ok ... [%.1f%%]' % percent
+    print('ok ... [%.1f%%]' % percent)
 
     # recursively fetch all the available pages.
     if params['page'] <= int(pagination['totalPages']):
@@ -69,7 +70,8 @@ def is_equal(a, b, fuzzy=True):
         if not fuzzy:
             is_same = all([
                 a[key].lower() == b[key].lower()
-                if a[key] is not None and b[key] is not None else a[key] == b[key]
+                if a[key] is not None and b[key] is not None
+                else a[key] == b[key]
                 for key in a
             ])
         else:
@@ -80,9 +82,12 @@ def is_equal(a, b, fuzzy=True):
             if is_same:
                 import Levenshtein
                 is_same = all([
-                    abs(len(a[key]) - len(b[key])) < max(len(a[key]), len(b[key]))
-                    and Levenshtein.distance(unicode(a[key].lower()), unicode(b[key].lower())) <= 5
-                    if a[key] is not None and b[key] is not None else a[key] == b[key]
+                    abs(len(a[key]) - len(b[key])) <
+                    max(len(a[key]), len(b[key]))
+                    and Levenshtein.distance(
+                        str(a[key].lower()), str(b[key].lower())) <= 5
+                    if a[key] is not None and b[key] is not None
+                    else a[key] == b[key]
                     for key in a
                 ])
     return is_same
@@ -97,17 +102,21 @@ def validate():
         raise SystemExit('Rhythmbox DB file does not exist.')
     if os.system('rhythmbox-client --check-running') == 0:
         if options.force:
-            print 'Warning: Rhythmbox is running.'
+            print('Warning: Rhythmbox is running.')
         else:
             raise SystemExit('Rhythmbox is running.')
 
 
 if __name__ == '__main__':
-    parser = optparse.OptionParser(usage='Usage: %prog --username <last.fm username>', version='1.0')
+    parser = optparse.OptionParser(
+            usage='Usage: %prog --username <last.fm username>', version='1.0')
     parser.add_option('-u', '--username', help='Last.fm username')
-    parser.add_option('-l', '--limit', type=int, default=250, help='Number of tracks per page to fetch')
+    parser.add_option(
+            '-l', '--limit', type=int, default=250,
+            help='Number of tracks per page to fetch')
     parser.add_option('--fuzzy', action='store_true', default=False,
-                      help='Use fuzzy matching. Depends on python-Levenshtein library.')
+                      help='Use fuzzy matching.\
+                      Depends on python-Levenshtein library.')
     parser.add_option('-f', '--force', action='store_true', default=False,
                       help='Ignore warnings and continue regardless.')
     options, files = parser.parse_args()
@@ -123,20 +132,21 @@ if __name__ == '__main__':
         period='overall'
     )
 
-    print 'Loading rhythmbox database file ... ',
+    print('Loading rhythmbox database file ... ')
     rhythmbox_tracks = load_rb_tracks()
-    print 'ok'
+    print('ok')
 
     tree = None
-    print 'Syncing '
+    print('Syncing ')
     match_count = []
     total_tracks = len(rhythmbox_tracks)
-    buckets = range(100, 0, -10)
+    buckets = list(range(100, 0, -10))
     for count, track in enumerate(rhythmbox_tracks):
-        if buckets and 100.0 * (count + 1) / float(total_tracks) >= buckets[-1]:
-            print '|||{0}%'.format(buckets[-1])
+        if buckets and 100.0 * (count + 1) /\
+                float(total_tracks) >= buckets[-1]:
+            print('|||{0}%'.format(buckets[-1]))
             buckets.pop()
-        if track['title'] is None or track['duration'] <= 0:
+        if track['title'] is None or int(track['duration']) <= 0:
             continue
         node = track.pop('node')
         tree = track.pop('tree')
@@ -184,8 +194,8 @@ if __name__ == '__main__':
                         playcount_element = ET.SubElement(node, 'play-count')
                     playcount_element.text = str(last_fm_playcount)
 
-    print 'Saving changes to rhythmbox db file ... ',
+    print('Saving changes to rhythmbox db file ... ')
     if tree is not None:
         tree.write(RHYTHM_DB)
-    print 'ok'
+    print('ok')
 
